@@ -1,0 +1,180 @@
+/* Focus Timer Overlay Styles */
+#focus-timer-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(94, 80, 63, 0.95);
+  z-index: 2147483647;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-family: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  backdrop-filter: blur(3px);
+}
+
+.focus-timer-content {
+  max-width: 600px;
+  padding: 60px 40px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 30px;
+}
+
+.focus-timer-time {
+  font-size: 48px;
+  font-weight: 700;
+  color: #f5f1eb;
+  letter-spacing: 2px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.focus-timer-message {
+  font-size: 24px;
+  font-weight: 600;
+  color: #f5f1eb;
+  line-height: 1.4;
+  max-width: 500px;
+}
+
+.focus-timer-quote {
+  font-size: 18px;
+  font-style: italic;
+  color: #e8dfc8;
+  line-height: 1.6;
+  max-width: 500px;
+  padding: 20px;
+  border-left: 3px solid #c97449;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+}
+
+.focus-timer-override-section {
+  margin-top: 20px;
+  width: 100%;
+  max-width: 400px;
+}
+
+.focus-timer-override-btn {
+  padding: 14px 32px;
+  background: #c97449;
+  color: #f5f1eb;
+  border: none;
+  border-radius: 8px;
+  font-family: 'Manrope', sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+}
+
+.focus-timer-override-btn:hover {
+  background: #b3633f;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 8px rgba(0, 0, 0, 0.3);
+}
+
+.focus-timer-override-btn:active {
+  transform: translateY(0);
+}
+
+.focus-timer-override-input-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+}
+
+.focus-timer-override-prompt {
+  font-size: 16px;
+  color: #f5f1eb;
+  margin: 0;
+  font-weight: 500;
+}
+
+.focus-timer-override-text-input {
+  width: 100%;
+  padding: 14px 16px;
+  background: rgba(245, 241, 235, 0.95);
+  border: 2px solid #c4b5a0;
+  border-radius: 8px;
+  font-family: 'Manrope', sans-serif;
+  font-size: 16px;
+  color: #3d3428;
+  outline: none;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+}
+
+.focus-timer-override-text-input:focus {
+  border-color: #c97449;
+}
+
+.focus-timer-override-text-input::placeholder {
+  color: #9b8b75;
+}
+
+.focus-timer-submit-btn {
+  padding: 12px 28px;
+  background: #c97449;
+  color: #f5f1eb;
+  border: none;
+  border-radius: 8px;
+  font-family: 'Manrope', sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+}
+
+.focus-timer-submit-btn:hover {
+  background: #b3633f;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 8px rgba(0, 0, 0, 0.3);
+}
+
+.focus-timer-submit-btn:active {
+  transform: translateY(0);
+}
+
+.focus-timer-error {
+  color: #ff9b85;
+  font-size: 14px;
+  font-weight: 600;
+  min-height: 20px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+/* Accessibility */
+#focus-timer-overlay * {
+  box-sizing: border-box;
+}
+
+/* Prevent text selection on overlay */
+#focus-timer-overlay {
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
+/* Allow text selection in input */
+.focus-timer-override-text-input {
+  user-select: text;
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+}
+
+/* Focus visible states for accessibility */
+.focus-timer-override-btn:focus-visible,
+.focus-timer-submit-btn:focus-visible,
+.focus-timer-override-text-input:focus-visible {
+  outline: 3px solid #c97449;
+  outline-offset: 2px;
+}
