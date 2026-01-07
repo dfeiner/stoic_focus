@@ -7,6 +7,7 @@ const timerValue = document.getElementById('timerValue');
 const timerUnit = document.getElementById('timerUnit');
 const startBlockingBtn = document.getElementById('startBlockingBtn');
 const timerStatus = document.getElementById('timerStatus');
+const resetBtn = document.getElementById('resetBtn');
 const presetName = document.getElementById('presetName');
 const savePresetBtn = document.getElementById('savePresetBtn');
 const presetSelect = document.getElementById('presetSelect');
@@ -199,6 +200,28 @@ startBlockingBtn.addEventListener('click', async () => {
 
   // Close popup after starting
   window.close();
+});
+
+// Reset button
+resetBtn.addEventListener('click', async () => {
+  // Clear blocked domains
+  blockedDomains = [];
+  
+  // Reset timer to default (60 minutes)
+  timerValue.value = 60;
+  timerUnit.value = 'minutes';
+  
+  // Clear active timer
+  timerEndTime = null;
+  
+  // Save data to storage
+  await saveData();
+  await saveTimerInputs(60, 'minutes');
+  
+  // Update UI
+  renderDomainList();
+  updateStartButton();
+  updateTimerStatus();
 });
 
 // Update timer status display
