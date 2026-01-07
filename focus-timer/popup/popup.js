@@ -20,11 +20,19 @@ let timerEndTime = null;
 
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
-  await loadData();
+  const timerData = await loadData();
   renderDomainList();
   renderPresets();
   updateTimerStatus();
   updateStartButton();
+
+  // Restore timer input values from storage, or use defaults (60 minutes)
+  if (timerData.lastTimerValue) {
+    timerValue.value = timerData.lastTimerValue;
+  }
+  if (timerData.lastTimerUnit) {
+    timerUnit.value = timerData.lastTimerUnit;
+  }
 
   // Update timer status every second
   setInterval(updateTimerStatus, 1000);
@@ -32,10 +40,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 // Load data from storage
 async function loadData() {
-  const data = await chrome.storage.local.get(['blockedDomains', 'timerEndTime', 'presets']);
+  const data = await chrome.storage.local.get(['blockedDomains', 'timerEndTime', 'presets', 'lastTimerValue', 'lastTimerUnit']);
   blockedDomains = data.blockedDomains || [];
   timerEndTime = data.timerEndTime || null;
   presets = data.presets || {};
+  return {
+    lastTimerValue: data.lastTimerValue,
+    lastTimerUnit: data.lastTimerUnit
+  };
 }
 
 // Save data to storage
@@ -44,6 +56,14 @@ async function saveData() {
     blockedDomains,
     timerEndTime,
     presets
+  });
+}
+
+// Save timer input values to storage
+async function saveTimerInputs(value, unit) {
+  await chrome.storage.local.set({
+    lastTimerValue: value,
+    lastTimerUnit: unit
   });
 }
 
@@ -167,6 +187,9 @@ startBlockingBtn.addEventListener('click', async () => {
     showError('Timer must be between 1 minute and 12 hours');
     return;
   }
+
+  // Save timer input values to storage
+  await saveTimerInputs(value, unit);
 
   // Calculate end time
   timerEndTime = Date.now() + (minutes * 60 * 1000);
