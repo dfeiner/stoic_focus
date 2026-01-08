@@ -54,6 +54,13 @@
     <div class="section">
       <h2>Presets</h2>
       <div class="preset-controls">
+        <div class="preset-load-group">
+          <select id="presetSelect">
+            <option value="">-- Select Preset --</option>
+          </select>
+          <button id="loadPresetBtn">Save</button>
+          <button id="deletePresetBtn" class="delete-btn">Delete</button>
+        </div>
         <div class="input-group">
           <input
             type="text"
@@ -61,14 +68,7 @@
             placeholder="Preset name"
             autocomplete="off"
           >
-          <button id="savePresetBtn">Save</button>
-        </div>
-        <div class="preset-load-group">
-          <select id="presetSelect">
-            <option value="">-- Select Preset --</option>
-          </select>
-          <button id="loadPresetBtn">Load</button>
-          <button id="deletePresetBtn" class="delete-btn">Delete</button>
+          <button id="savePresetBtn">Add</button>
         </div>
       </div>
     </div>

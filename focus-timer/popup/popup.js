@@ -18,6 +18,8 @@ const deletePresetBtn = document.getElementById('deletePresetBtn');
 let blockedDomains = [];
 let presets = {};
 let timerEndTime = null;
+let selectedPresetName = null;
+let baselineState = null;
 
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
@@ -26,6 +28,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   renderPresets();
   updateTimerStatus();
   updateStartButton();
+  updateSaveButtonState();
+  updateAddButtonState();
 
   // Restore timer input values from storage, or use defaults (60 minutes)
   if (timerData.lastTimerValue) {
@@ -34,6 +38,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (timerData.lastTimerUnit) {
     timerUnit.value = timerData.lastTimerUnit;
   }
+
+  // Wire up change listeners
+  timerValue.addEventListener('input', updateSaveButtonState);
+  timerUnit.addEventListener('change', updateSaveButtonState);
+  presetName.addEventListener('input', updateAddButtonState);
+  presetSelect.addEventListener('change', handlePresetSelect);
 
   // Update timer status every second
   setInterval(updateTimerStatus, 1000);
@@ -45,6 +55,25 @@ async function loadData() {
   blockedDomains = data.blockedDomains || [];
   timerEndTime = data.timerEndTime || null;
   presets = data.presets || {};
+  
+  // Migrate old preset format (arrays) to new format (objects)
+  for (const [name, preset] of Object.entries(presets)) {
+    if (Array.isArray(preset)) {
+      // Old format: array of domains
+      // Convert to new format with timer settings from defaults
+      presets[name] = {
+        domains: [...preset],
+        timerValue: data.lastTimerValue || 60,
+        timerUnit: data.lastTimerUnit || 'minutes'
+      };
+    }
+  }
+  
+  // If any presets were migrated, save them back
+  if (Object.keys(presets).length > 0) {
+    await saveData();
+  }
+  
   return {
     lastTimerValue: data.lastTimerValue,
     lastTimerUnit: data.lastTimerUnit
@@ -115,6 +144,7 @@ addDomainBtn.addEventListener('click', async () => {
   errorMessage.textContent = '';
   renderDomainList();
   updateStartButton();
+  updateSaveButtonState();
 });
 
 // Allow adding domain with Enter key
@@ -130,6 +160,7 @@ async function removeDomain(domain) {
   await saveData();
   renderDomainList();
   updateStartButton();
+  updateSaveButtonState();
 }
 
 // Render domain list
@@ -165,6 +196,48 @@ function showError(message) {
 // Update start button state
 function updateStartButton() {
   startBlockingBtn.disabled = blockedDomains.length === 0;
+}
+
+// Compare two arrays for equality
+function arraysEqual(a, b) {
+  if (a.length !== b.length) return false;
+  return a.every((val, index) => val === b[index]);
+}
+
+// Update Save button state based on whether changes have been made
+function updateSaveButtonState() {
+  if (!selectedPresetName || !baselineState) {
+    loadPresetBtn.disabled = true;
+    return;
+  }
+
+  const currentState = {
+    domains: [...blockedDomains].sort(),
+    timerValue: parseInt(timerValue.value) || 60,
+    timerUnit: timerUnit.value || 'minutes'
+  };
+
+  const baseline = {
+    domains: [...baselineState.domains].sort(),
+    timerValue: baselineState.timerValue,
+    timerUnit: baselineState.timerUnit
+  };
+
+  // Check if domains changed
+  const domainsChanged = !arraysEqual(currentState.domains, baseline.domains);
+  
+  // Check if timer changed
+  const timerChanged = currentState.timerValue !== baseline.timerValue || 
+                       currentState.timerUnit !== baseline.timerUnit;
+
+  // Enable Save button only if changes detected
+  loadPresetBtn.disabled = !domainsChanged && !timerChanged;
+}
+
+// Update Add button state based on input field
+function updateAddButtonState() {
+  const name = presetName.value.trim();
+  savePresetBtn.disabled = !name;
 }
 
 // Start blocking
@@ -214,6 +287,11 @@ resetBtn.addEventListener('click', async () => {
   // Clear active timer
   timerEndTime = null;
   
+  // Reset preset selection state
+  selectedPresetName = null;
+  baselineState = null;
+  presetSelect.value = '';
+  
   // Save data to storage
   await saveData();
   await saveTimerInputs(60, 'minutes');
@@ -222,6 +300,8 @@ resetBtn.addEventListener('click', async () => {
   renderDomainList();
   updateStartButton();
   updateTimerStatus();
+  updateSaveButtonState();
+  renderPresets();
 });
 
 // Update timer status display
@@ -259,7 +339,7 @@ function formatTime(ms) {
   }
 }
 
-// Save preset
+// Save preset (Add button - creates new preset)
 savePresetBtn.addEventListener('click', async () => {
   const name = presetName.value.trim();
 
@@ -273,29 +353,94 @@ savePresetBtn.addEventListener('click', async () => {
     return;
   }
 
-  presets[name] = [...blockedDomains];
+  presets[name] = {
+    domains: [...blockedDomains],
+    timerValue: parseInt(timerValue.value) || 60,
+    timerUnit: timerUnit.value || 'minutes'
+  };
   await saveData();
   presetName.value = '';
+  updateAddButtonState();
   renderPresets();
   showError(''); // Clear any errors
 });
 
-// Load preset
-loadPresetBtn.addEventListener('click', async () => {
+// Handle preset selection change (auto-load preset)
+async function handlePresetSelect() {
   const selectedPreset = presetSelect.value;
 
   if (!selectedPreset) {
-    showError('Please select a preset');
+    selectedPresetName = null;
+    baselineState = null;
+    updateSaveButtonState();
     return;
   }
 
   if (presets[selectedPreset]) {
-    blockedDomains = [...presets[selectedPreset]];
+    const preset = presets[selectedPreset];
+    
+    // Handle old format (array) for backwards compatibility
+    if (Array.isArray(preset)) {
+      blockedDomains = [...preset];
+      // Don't change timer values if preset is old format
+    } else {
+      // New format (object with domains, timerValue, timerUnit)
+      blockedDomains = [...preset.domains];
+      timerValue.value = preset.timerValue || 60;
+      timerUnit.value = preset.timerUnit || 'minutes';
+      await saveTimerInputs(preset.timerValue || 60, preset.timerUnit || 'minutes');
+    }
+    
     await saveData();
     renderDomainList();
     updateStartButton();
+    
+    // Set selected preset and baseline state for change tracking
+    selectedPresetName = selectedPreset;
+    baselineState = {
+      domains: [...blockedDomains],
+      timerValue: parseInt(timerValue.value) || 60,
+      timerUnit: timerUnit.value || 'minutes'
+    };
+    
+    updateSaveButtonState();
     showError(''); // Clear any errors
   }
+}
+
+// Save preset (Save button - overwrites selected preset)
+loadPresetBtn.addEventListener('click', async () => {
+  const selectedPreset = presetSelect.value;
+
+  if (!selectedPreset) {
+    showError('Please select a preset to save');
+    return;
+  }
+
+  if (!selectedPresetName || selectedPresetName !== selectedPreset) {
+    showError('Please select the preset you want to save');
+    return;
+  }
+
+  // Save current state over the selected preset
+  presets[selectedPreset] = {
+    domains: [...blockedDomains],
+    timerValue: parseInt(timerValue.value) || 60,
+    timerUnit: timerUnit.value || 'minutes'
+  };
+  
+  await saveData();
+  
+  // Update baseline state to match current state (changes are now saved)
+  baselineState = {
+    domains: [...blockedDomains],
+    timerValue: parseInt(timerValue.value) || 60,
+    timerUnit: timerUnit.value || 'minutes'
+  };
+  
+  updateSaveButtonState();
+  renderPresets();
+  showError(''); // Clear any errors
 });
 
 // Delete preset
@@ -309,7 +454,16 @@ deletePresetBtn.addEventListener('click', async () => {
 
   delete presets[selectedPreset];
   await saveData();
+  
+  // Reset selection state if we deleted the currently selected preset
+  if (selectedPresetName === selectedPreset) {
+    selectedPresetName = null;
+    baselineState = null;
+    presetSelect.value = '';
+  }
+  
   renderPresets();
+  updateSaveButtonState();
   showError(''); // Clear any errors
 });
 
