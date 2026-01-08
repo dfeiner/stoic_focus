@@ -20,7 +20,7 @@
         <input
           type="text"
           id="domainInput"
-          placeholder="e.g., reddit.com"
+          placeholder="e.g., reddit.com, mail.google.com"
           autocomplete="off"
         >
         <button id="addDomainBtn">Add</button>
@@ -31,13 +31,16 @@
 
     <!-- Timer Section -->
     <div class="section">
-      <h2>Timer</h2>
+      <h2>
+        Timer
+        <span class="info-bubble" aria-label="Maximum 24 hours">i</span>
+      </h2>
       <div class="timer-input-group">
         <input
           type="number"
           id="timerValue"
           min="1"
-          max="720"
+          max="1440"
           value="60"
         >
         <select id="timerUnit">
@@ -45,6 +48,7 @@
           <option value="hours">Hours</option>
         </select>
       </div>
+      <div id="timerErrorMessage" class="error-message"></div>
       <button id="startBlockingBtn" class="primary-btn" disabled>Start Blocking</button>
       <button id="resetBtn" class="secondary-btn">Reset</button>
       <div id="timerStatus" class="timer-status"></div>
