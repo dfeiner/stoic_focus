@@ -19,9 +19,29 @@ body {
 h1 {
   font-size: 24px;
   font-weight: 700;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
   color: #3d3428;
   text-align: center;
+}
+
+/* Quote Section */
+.quote-section {
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #d4c9ba;
+}
+
+.featured-quote {
+  font-size: 13px;
+  font-style: italic;
+  color: #5a4a3a;
+  line-height: 1.5;
+  padding: 10px 12px;
+  background: #faf8f4;
+  border-left: 3px solid #c97449;
+  border-radius: 4px;
+  max-height: 80px;
+  overflow-y: auto;
 }
 
 h2 {
@@ -308,21 +328,25 @@ button:disabled {
 }
 
 /* Scrollbar Styling */
-.domain-list::-webkit-scrollbar {
+.domain-list::-webkit-scrollbar,
+.featured-quote::-webkit-scrollbar {
   width: 6px;
 }
 
-.domain-list::-webkit-scrollbar-track {
+.domain-list::-webkit-scrollbar-track,
+.featured-quote::-webkit-scrollbar-track {
   background: #f5f1eb;
   border-radius: 3px;
 }
 
-.domain-list::-webkit-scrollbar-thumb {
+.domain-list::-webkit-scrollbar-thumb,
+.featured-quote::-webkit-scrollbar-thumb {
   background: #c4b5a0;
   border-radius: 3px;
 }
 
-.domain-list::-webkit-scrollbar-thumb:hover {
+.domain-list::-webkit-scrollbar-thumb:hover,
+.featured-quote::-webkit-scrollbar-thumb:hover {
   background: #b3a492;
 }
 
