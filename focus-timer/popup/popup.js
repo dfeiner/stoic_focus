@@ -7,6 +7,7 @@ const timerValue = document.getElementById('timerValue');
 const timerUnit = document.getElementById('timerUnit');
 const startBlockingBtn = document.getElementById('startBlockingBtn');
 const timerStatus = document.getElementById('timerStatus');
+const timerErrorMessage = document.getElementById('timerErrorMessage');
 const resetBtn = document.getElementById('resetBtn');
 const presetName = document.getElementById('presetName');
 const savePresetBtn = document.getElementById('savePresetBtn');
@@ -38,10 +39,19 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (timerData.lastTimerUnit) {
     timerUnit.value = timerData.lastTimerUnit;
   }
+  
+  // Validate timer after loading values
+  validateTimer();
 
   // Wire up change listeners
-  timerValue.addEventListener('input', updateSaveButtonState);
-  timerUnit.addEventListener('change', updateSaveButtonState);
+  timerValue.addEventListener('input', () => {
+    updateSaveButtonState();
+    updateStartButton();
+  });
+  timerUnit.addEventListener('change', () => {
+    updateSaveButtonState();
+    updateStartButton();
+  });
   presetName.addEventListener('input', updateAddButtonState);
   presetSelect.addEventListener('change', handlePresetSelect);
 
@@ -193,9 +203,37 @@ function showError(message) {
   }, 3000);
 }
 
+// Validate timer and return true if valid (<= 24 hours)
+function validateTimer() {
+  const value = parseInt(timerValue.value);
+  const unit = timerUnit.value;
+
+  if (!value || value <= 0) {
+    timerErrorMessage.textContent = '';
+    return false;
+  }
+
+  // Convert to minutes
+  let minutes = value;
+  if (unit === 'hours') {
+    minutes = value * 60;
+  }
+
+  // Check if timer exceeds 24 hours (1440 minutes)
+  if (minutes > 1440) {
+    timerErrorMessage.textContent = 'Please set the timer to 24 hours or less to continue';
+    return false;
+  } else {
+    timerErrorMessage.textContent = '';
+    return true;
+  }
+}
+
 // Update start button state
 function updateStartButton() {
-  startBlockingBtn.disabled = blockedDomains.length === 0;
+  const hasDomains = blockedDomains.length > 0;
+  const timerValid = validateTimer();
+  startBlockingBtn.disabled = !hasDomains || !timerValid;
 }
 
 // Compare two arrays for equality
@@ -256,9 +294,9 @@ startBlockingBtn.addEventListener('click', async () => {
     minutes = value * 60;
   }
 
-  // Validate range (1 minute to 12 hours = 720 minutes)
-  if (minutes < 1 || minutes > 720) {
-    showError('Timer must be between 1 minute and 12 hours');
+  // Validate range (1 minute to 24 hours = 1440 minutes)
+  if (minutes < 1 || minutes > 1440) {
+    showError('Timer must be between 1 minute and 24 hours');
     return;
   }
 
