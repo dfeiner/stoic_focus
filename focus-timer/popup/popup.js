@@ -14,6 +14,61 @@ const savePresetBtn = document.getElementById('savePresetBtn');
 const presetSelect = document.getElementById('presetSelect');
 const loadPresetBtn = document.getElementById('loadPresetBtn');
 const deletePresetBtn = document.getElementById('deletePresetBtn');
+const featuredQuote = document.getElementById('featuredQuote');
+
+// Motivational quotes (duplicated from content.js since popup and content scripts run in separate contexts)
+const QUOTES = [
+  "The key is not to prioritize what's on your schedule, but to schedule your priorities. - Stephen Covey",
+  "You can do anything, but not everything. - David Allen",
+  "Focus is a matter of deciding what things you're not going to do. - John Carmack",
+  "Concentrate all your thoughts upon the work at hand. The sun's rays do not burn until brought to a focus. - Alexander Graham Bell",
+  "It's not always that we need to do more but rather that we need to focus on less. - Nathan W. Morris",
+  "The successful warrior is the average man, with laser-like focus. - Bruce Lee",
+  "Where focus goes, energy flows. - Tony Robbins",
+  "Lack of direction, not lack of time, is the problem. We all have twenty-four hour days. - Zig Ziglar",
+  "To produce at your peak level you need to work for extended periods with full concentration on a single task free from distraction. - Cal Newport",
+  "Your ability to concentrate single-mindedly on one thing, the most important thing, and stay at it until it is complete, is essential to success. - Brian Tracy",
+  "The difference between successful people and really successful people is that really successful people say no to almost everything. - Warren Buffett",
+  "Starve your distractions, feed your focus. - Unknown",
+  "It is not enough to be busy. The question is: what are we busy about? - Henry David Thoreau",
+  "Action expresses priorities. - Mahatma Gandhi",
+  "The ability to concentrate and to use your time well is everything if you want to succeed in business—or almost anywhere else for that matter. - Lee Iacocca",
+  "You have power over your mind—not outside events. Realize this, and you will find strength. - Marcus Aurelius",
+  "The impediment to action advances action. What stands in the way becomes the way. - Marcus Aurelius",
+  "Waste no more time arguing about what a good man should be. Be one. - Marcus Aurelius",
+  "If it is not right, do not do it; if it is not true, do not say it. - Marcus Aurelius",
+  "The best revenge is not being like your enemy. - Marcus Aurelius",
+  "It is not that we have a short time to live, but that we waste a lot of it. - Seneca",
+  "We suffer more often in imagination than in reality. - Seneca",
+  "If a man knows not to which port he sails, no wind is favorable. - Seneca",
+  "He who is brave is free. - Seneca",
+  "Difficulties strengthen the mind, as labor does the body. - Seneca",
+  "First say to yourself what you would be; and then do what you have to do. - Epictetus",
+  "We cannot choose our external circumstances, but we can always choose how we respond to them. - Epictetus",
+  "No man is free who is not master of himself. - Epictetus",
+  "Don't explain your philosophy. Embody it. - Epictetus",
+  "The more we value things outside our control, the less control we have. - Epictetus",
+  "Focus on what you can control, and let go of what you cannot. - Epictetus",
+  "The secret of getting ahead is getting started. - Mark Twain",
+  "Do the hard jobs first. The easy jobs will take care of themselves. - Dale Carnegie",
+  "The way to get started is to quit talking and begin doing. - Walt Disney",
+  "Amateurs sit and wait for inspiration, the rest of us just get up and go to work. - Stephen King",
+  "The best time to plant a tree was 20 years ago. The second best time is now. - Chinese Proverb",
+  "What you get by achieving your goals is not as important as what you become by achieving your goals. - Zig Ziglar",
+  "The only way to do great work is to love what you do. - Steve Jobs",
+  "Discipline is choosing between what you want now and what you want most. - Abraham Lincoln",
+  "The future depends on what you do today. - Mahatma Gandhi",
+  "Concentration is the root of all the higher abilities in man. - Bruce Lee",
+  "The successful person has the habit of doing the things failures don't like to do. - E. M. Gray",
+  "The price of anything is the amount of life you exchange for it. - Henry David Thoreau",
+  "Our life is what our thoughts make it. - Marcus Aurelius",
+  "Very little is needed to make a happy life; it is all within yourself, in your way of thinking. - Marcus Aurelius",
+  "How much trouble he avoids who does not look to see what his neighbor says or does. - Marcus Aurelius",
+  "The happiness of your life depends upon the quality of your thoughts. - Marcus Aurelius",
+  "You become what you give your attention to. - Epictetus",
+  "It's not what happens to you, but how you react to it that matters. - Epictetus",
+  "The chief task in life is simply this: to identify and separate matters so that I can say clearly to myself which are externals not under my control, and which have to do with the choices I actually control. - Epictetus"
+];
 
 // State
 let blockedDomains = [];
@@ -22,8 +77,21 @@ let timerEndTime = null;
 let selectedPresetName = null;
 let baselineState = null;
 
+// Get random quote
+function getRandomQuote() {
+  return QUOTES[Math.floor(Math.random() * QUOTES.length)];
+}
+
+// Display featured quote
+function displayFeaturedQuote() {
+  if (featuredQuote) {
+    featuredQuote.textContent = getRandomQuote();
+  }
+}
+
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
+  displayFeaturedQuote();
   const timerData = await loadData();
   renderDomainList();
   renderPresets();
