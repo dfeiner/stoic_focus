@@ -366,7 +366,7 @@ function setupOverlayListeners() {
   overrideBtn.addEventListener('click', () => {
     isOverrideMode = true;
     overrideBtn.style.display = 'none';
-    overrideInputSection.style.display = 'block';
+    overrideInputSection.style.display = 'flex';
     overrideText.focus();
   });
 
