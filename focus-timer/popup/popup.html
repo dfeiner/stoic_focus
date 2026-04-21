@@ -29,11 +29,6 @@
 
       <!-- Blocked Domains Panel -->
       <section id="domainsPanel" class="tab-panel active" role="tabpanel">
-        <div id="editBanner" class="edit-banner" hidden>
-          <span>Editing preset: <strong id="editBannerName"></strong></span>
-          <button id="cancelEditBtn" class="link-btn" type="button">Cancel</button>
-        </div>
-
         <div class="sub-section">
           <h2>Blocked Domains</h2>
           <div class="input-group">
@@ -68,17 +63,22 @@
             </select>
           </div>
           <div id="timerErrorMessage" class="error-message"></div>
+
+          <div id="presetBanner" class="preset-banner" hidden>
+            <div class="preset-banner-top">
+              <span id="presetBannerText" class="preset-banner-text">Save as preset</span>
+              <button id="cancelEditBtn" class="link-btn" type="button" hidden>Cancel</button>
+            </div>
+            <div class="preset-banner-actions">
+              <button id="saveAsPresetBtn" class="preset-banner-btn" type="button" hidden>Save</button>
+              <button id="saveChangesBtn" class="preset-banner-btn" type="button" hidden>Save</button>
+              <button id="saveAsNewPresetBtn" class="preset-banner-btn-secondary" type="button" hidden>Save as new preset</button>
+            </div>
+          </div>
+
           <button id="startBlockingBtn" class="primary-btn" disabled>Start Blocking</button>
           <button id="resetBtn" class="secondary-btn">Reset</button>
           <div id="timerStatus" class="timer-status"></div>
-        </div>
-
-        <div id="saveCtaFooter" class="save-cta-footer" hidden>
-          <button id="saveAsPresetBtn" class="secondary-btn" type="button" hidden>Save as preset</button>
-          <div id="editCtaRow" class="cta-row" hidden>
-            <button id="saveChangesBtn" type="button">Save changes</button>
-            <button id="saveAsNewPresetBtn" class="secondary-btn" type="button">Save as new preset</button>
-          </div>
         </div>
       </section>
 

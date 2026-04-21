@@ -118,23 +118,54 @@ h2 {
   margin-bottom: 0;
 }
 
-/* Edit Banner */
-.edit-banner {
+/* Preset Banner (between Timer inputs and Start Blocking) */
+.preset-banner {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
   gap: 10px;
-  padding: 10px 12px;
-  margin-bottom: 14px;
+  padding: 12px;
+  margin: 4px 0 10px;
   background: #faf0e4;
   border: 1px solid #e6c9a8;
-  border-radius: 6px;
+  border-radius: 8px;
   font-size: 13px;
   color: #5a4a3a;
 }
 
-.edit-banner strong {
+.preset-banner-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.preset-banner-text {
+  font-weight: 600;
   color: #3d3428;
+  word-break: break-word;
+}
+
+.preset-banner-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.preset-banner-actions > button {
+  flex: 1;
+  padding: 8px 12px;
+  font-size: 13px;
+}
+
+.preset-banner-btn-secondary {
+  background: transparent;
+  border: 1px solid #c97449;
+  color: #c97449;
+}
+
+.preset-banner-btn-secondary:hover {
+  background: rgba(201, 116, 73, 0.08);
+  color: #b3633f;
+  border-color: #b3633f;
 }
 
 .link-btn {
@@ -392,26 +423,6 @@ button:disabled {
 .info-bubble:hover::before,
 .info-bubble:hover::after {
   opacity: 1;
-}
-
-/* Save CTA Footer */
-.save-cta-footer {
-  margin-top: 14px;
-  padding-top: 12px;
-  border-top: 1px solid #d4c9ba;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.cta-row {
-  display: flex;
-  gap: 8px;
-}
-
-.cta-row > button {
-  flex: 1;
-  margin-top: 0;
 }
 
 /* New Preset Form (Presets tab) */
