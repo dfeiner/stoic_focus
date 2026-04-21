@@ -339,18 +339,26 @@ function hideOverlay() {
 
 // Update timer display
 async function updateTimerDisplay() {
-  const data = await chrome.storage.local.get(['timerEndTime']);
-  const timerEndTime = data.timerEndTime;
-
-  if (!timerEndTime || Date.now() >= timerEndTime) {
-    hideOverlay();
+  if (!chrome.runtime?.id) {
+    clearInterval(timerInterval);
     return;
   }
+  try {
+    const data = await chrome.storage.local.get(['timerEndTime']);
+    const timerEndTime = data.timerEndTime;
 
-  const remaining = timerEndTime - Date.now();
-  const timeElement = document.getElementById('focus-timer-time');
-  if (timeElement) {
-    timeElement.textContent = formatTime(remaining);
+    if (!timerEndTime || Date.now() >= timerEndTime) {
+      hideOverlay();
+      return;
+    }
+
+    const remaining = timerEndTime - Date.now();
+    const timeElement = document.getElementById('focus-timer-time');
+    if (timeElement) {
+      timeElement.textContent = formatTime(remaining);
+    }
+  } catch (e) {
+    clearInterval(timerInterval);
   }
 }
 
@@ -400,23 +408,35 @@ function setupOverlayListeners() {
   });
 }
 
+// Store interval ID so we can clear it on context invalidation
+let checkInterval;
+
 // Check if should show overlay
 async function checkAndShowOverlay() {
-  const data = await chrome.storage.local.get(['blockedDomains', 'timerEndTime']);
-  const blockedDomains = data.blockedDomains || [];
-  const timerEndTime = data.timerEndTime;
-
-  // Check if timer is active
-  if (!timerEndTime || Date.now() >= timerEndTime) {
-    hideOverlay();
+  if (!chrome.runtime?.id) {
+    clearInterval(checkInterval);
     return;
   }
+  try {
+    const data = await chrome.storage.local.get(['blockedDomains', 'timerEndTime']);
+    const blockedDomains = data.blockedDomains || [];
+    const timerEndTime = data.timerEndTime;
 
-  // Check if current domain is blocked
-  if (isCurrentDomainBlocked(blockedDomains)) {
-    showOverlay();
-  } else {
-    hideOverlay();
+    // Check if timer is active
+    if (!timerEndTime || Date.now() >= timerEndTime) {
+      hideOverlay();
+      return;
+    }
+
+    // Check if current domain is blocked
+    if (isCurrentDomainBlocked(blockedDomains)) {
+      showOverlay();
+    } else {
+      hideOverlay();
+    }
+  } catch (e) {
+    // Extension context invalidated after reload — stop polling
+    clearInterval(checkInterval);
   }
 }
 
@@ -431,4 +451,4 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
 });
 
 // Periodically check (in case timer expires)
-setInterval(checkAndShowOverlay, 1000);
+checkInterval = setInterval(checkAndShowOverlay, 1000);
