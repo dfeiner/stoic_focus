@@ -707,6 +707,15 @@ function updateSaveCtaVisibility() {
   const timerOk = validateTimer();
   const hasDomains = blockedDomains.length > 0;
 
+  // Nothing is saveable without at least one blocked domain.
+  if (!hasDomains) {
+    presetBanner.hidden = true;
+    saveAsPresetBtn.hidden = true;
+    saveChangesBtn.hidden = true;
+    saveAsNewPresetBtn.hidden = true;
+    return;
+  }
+
   if (inEditMode) {
     const valid = timerOk && hasDomains;
     const canSave = valid && isDirtyFromEditBaseline();
