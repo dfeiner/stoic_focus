@@ -9,12 +9,31 @@ const startBlockingBtn = document.getElementById('startBlockingBtn');
 const timerStatus = document.getElementById('timerStatus');
 const timerErrorMessage = document.getElementById('timerErrorMessage');
 const resetBtn = document.getElementById('resetBtn');
-const presetName = document.getElementById('presetName');
-const savePresetBtn = document.getElementById('savePresetBtn');
-const presetSelect = document.getElementById('presetSelect');
-const loadPresetBtn = document.getElementById('loadPresetBtn');
-const deletePresetBtn = document.getElementById('deletePresetBtn');
 const featuredQuote = document.getElementById('featuredQuote');
+
+const tabBar = document.querySelector('.tab-bar');
+const tabButtons = document.querySelectorAll('.tab-btn');
+const tabPanels = document.querySelectorAll('.tab-panel');
+const domainsPanel = document.getElementById('domainsPanel');
+const presetsPanel = document.getElementById('presetsPanel');
+
+const closePanelBtn = document.getElementById('closePanelBtn');
+
+const presetBanner = document.getElementById('presetBanner');
+const presetBannerText = document.getElementById('presetBannerText');
+const cancelEditBtn = document.getElementById('cancelEditBtn');
+const saveAsPresetBtn = document.getElementById('saveAsPresetBtn');
+const saveChangesBtn = document.getElementById('saveChangesBtn');
+const saveAsNewPresetBtn = document.getElementById('saveAsNewPresetBtn');
+
+const newPresetForm = document.getElementById('newPresetForm');
+const newPresetName = document.getElementById('newPresetName');
+const newPresetError = document.getElementById('newPresetError');
+const confirmSavePresetBtn = document.getElementById('confirmSavePresetBtn');
+const cancelSavePresetBtn = document.getElementById('cancelSavePresetBtn');
+
+const presetList = document.getElementById('presetList');
+const presetEmptyState = document.getElementById('presetEmptyState');
 
 // Motivational quotes (duplicated from content.js since popup and content scripts run in separate contexts)
 const QUOTES = [
@@ -262,10 +281,12 @@ const QUOTES = [
 let blockedDomains = [];
 let presets = {};
 let timerEndTime = null;
-let selectedPresetName = null;
-let baselineState = null;
+let activeTab = 'domains';
+let editingPresetName = null;
+let editBaseline = null;
+let pendingSave = null;
 
-// Get today's date string in YYYY-MM-DD format
+// ----- Quote (daily rotating) -----
 function getTodayDateString() {
   const today = new Date();
   const year = today.getFullYear();
@@ -274,27 +295,20 @@ function getTodayDateString() {
   return `${year}-${month}-${day}`;
 }
 
-// Get daily quote for popup (rotates once per calendar day)
 async function getDailyQuote() {
   const today = getTodayDateString();
   const data = await chrome.storage.local.get(['popupCurrentQuote', 'popupQuoteDate']);
-  
-  // If we have a stored quote and it's from today, return it
   if (data.popupCurrentQuote && data.popupQuoteDate === today) {
     return data.popupCurrentQuote;
   }
-  
-  // Otherwise, select a new random quote and save it
   const newQuote = QUOTES[Math.floor(Math.random() * QUOTES.length)];
   await chrome.storage.local.set({
     popupCurrentQuote: newQuote,
     popupQuoteDate: today
   });
-  
   return newQuote;
 }
 
-// Display featured quote
 async function displayFeaturedQuote() {
   if (featuredQuote) {
     const quote = await getDailyQuote();
@@ -302,76 +316,102 @@ async function displayFeaturedQuote() {
   }
 }
 
-// Initialize
+// ----- Initialize -----
 document.addEventListener('DOMContentLoaded', async () => {
   await displayFeaturedQuote();
   const timerData = await loadData();
-  renderDomainList();
-  renderPresets();
-  updateTimerStatus();
-  updateStartButton();
-  updateSaveButtonState();
-  updateAddButtonState();
 
-  // Restore timer input values from storage, or use defaults (60 minutes)
   if (timerData.lastTimerValue) {
     timerValue.value = timerData.lastTimerValue;
   }
   if (timerData.lastTimerUnit) {
     timerUnit.value = timerData.lastTimerUnit;
   }
-  
-  // Validate timer after loading values
-  validateTimer();
 
-  // Wire up change listeners
+  renderDomainList();
+  validateTimer();
+  updateTimerStatus();
+  updateStartButton();
+  switchTab(timerData.activeTab === 'presets' ? 'presets' : 'domains', { persist: false });
+  updateSaveCtaVisibility();
+
+  // Change listeners
   timerValue.addEventListener('input', () => {
-    updateSaveButtonState();
     updateStartButton();
+    updateSaveCtaVisibility();
   });
   timerUnit.addEventListener('change', () => {
-    updateSaveButtonState();
     updateStartButton();
+    updateSaveCtaVisibility();
   });
-  presetName.addEventListener('input', updateAddButtonState);
-  presetSelect.addEventListener('change', handlePresetSelect);
+
+  // Tab bar (delegated)
+  tabBar.addEventListener('click', (e) => {
+    const btn = e.target.closest('.tab-btn');
+    if (!btn) return;
+    switchTab(btn.dataset.tab);
+  });
+
+  // Close panel button
+  closePanelBtn.addEventListener('click', () => window.close());
+
+  // Edit banner cancel
+  cancelEditBtn.addEventListener('click', () => {
+    exitEditMode();
+  });
+
+  // Save CTA buttons
+  saveAsPresetBtn.addEventListener('click', beginSaveAsPreset);
+  saveAsNewPresetBtn.addEventListener('click', beginSaveAsPreset);
+  saveChangesBtn.addEventListener('click', saveChangesToEditedPreset);
+
+  // New-preset form
+  confirmSavePresetBtn.addEventListener('click', confirmNewPreset);
+  cancelSavePresetBtn.addEventListener('click', cancelNewPresetForm);
+  newPresetName.addEventListener('input', () => {
+    newPresetError.textContent = '';
+  });
+  newPresetName.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') confirmNewPreset();
+  });
 
   // Update timer status every second
   setInterval(updateTimerStatus, 1000);
 });
 
-// Load data from storage
+// ----- Storage -----
 async function loadData() {
-  const data = await chrome.storage.local.get(['blockedDomains', 'timerEndTime', 'presets', 'lastTimerValue', 'lastTimerUnit']);
+  const data = await chrome.storage.local.get([
+    'blockedDomains', 'timerEndTime', 'presets',
+    'lastTimerValue', 'lastTimerUnit', 'activeTab'
+  ]);
   blockedDomains = data.blockedDomains || [];
   timerEndTime = data.timerEndTime || null;
   presets = data.presets || {};
-  
+
   // Migrate old preset format (arrays) to new format (objects)
+  let migrated = false;
   for (const [name, preset] of Object.entries(presets)) {
     if (Array.isArray(preset)) {
-      // Old format: array of domains
-      // Convert to new format with timer settings from defaults
       presets[name] = {
         domains: [...preset],
         timerValue: data.lastTimerValue || 60,
         timerUnit: data.lastTimerUnit || 'minutes'
       };
+      migrated = true;
     }
   }
-  
-  // If any presets were migrated, save them back
-  if (Object.keys(presets).length > 0) {
+  if (migrated) {
     await saveData();
   }
-  
+
   return {
     lastTimerValue: data.lastTimerValue,
-    lastTimerUnit: data.lastTimerUnit
+    lastTimerUnit: data.lastTimerUnit,
+    activeTab: data.activeTab
   };
 }
 
-// Save data to storage
 async function saveData() {
   await chrome.storage.local.set({
     blockedDomains,
@@ -380,7 +420,6 @@ async function saveData() {
   });
 }
 
-// Save timer input values to storage
 async function saveTimerInputs(value, unit) {
   await chrome.storage.local.set({
     lastTimerValue: value,
@@ -388,413 +427,489 @@ async function saveTimerInputs(value, unit) {
   });
 }
 
-// Validate and normalize domain
+// ----- Domain input/list -----
 function normalizeDomain(input) {
   let domain = input.trim().toLowerCase();
-
-  // Remove protocol
   domain = domain.replace(/^https?:\/\//, '');
-
-  // Remove www.
   domain = domain.replace(/^www\./, '');
-
-  // Remove path and query
   domain = domain.split('/')[0].split('?')[0];
-
-  // Basic validation
-  if (!domain || domain.length === 0) {
-    return null;
-  }
-
-  // Check for valid domain format
+  if (!domain) return null;
   const domainRegex = /^[a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,}$/;
-  if (!domainRegex.test(domain)) {
-    return null;
-  }
-
+  if (!domainRegex.test(domain)) return null;
   return domain;
 }
 
-// Add domain
 addDomainBtn.addEventListener('click', async () => {
   const domain = normalizeDomain(domainInput.value);
-
   if (!domain) {
     showError('Please enter a valid domain (e.g., reddit.com)');
     return;
   }
-
   if (blockedDomains.includes(domain)) {
     showError('Domain already in list');
     return;
   }
-
   blockedDomains.push(domain);
   await saveData();
   domainInput.value = '';
   errorMessage.textContent = '';
   renderDomainList();
   updateStartButton();
-  updateSaveButtonState();
+  updateSaveCtaVisibility();
 });
 
-// Allow adding domain with Enter key
 domainInput.addEventListener('keypress', (e) => {
-  if (e.key === 'Enter') {
-    addDomainBtn.click();
-  }
+  if (e.key === 'Enter') addDomainBtn.click();
 });
 
-// Remove domain
 async function removeDomain(domain) {
   blockedDomains = blockedDomains.filter(d => d !== domain);
   await saveData();
   renderDomainList();
   updateStartButton();
-  updateSaveButtonState();
+  updateSaveCtaVisibility();
 }
 
-// Render domain list
 function renderDomainList() {
   if (blockedDomains.length === 0) {
     domainList.innerHTML = '<div class="empty-state">No domains blocked yet</div>';
     return;
   }
-
   domainList.innerHTML = blockedDomains.map(domain => `
     <li class="domain-item">
-      <span class="domain-name">${domain}</span>
-      <button data-domain="${domain}">Remove</button>
+      <span class="domain-name">${escapeHtml(domain)}</span>
+      <button data-domain="${escapeHtml(domain)}">Remove</button>
     </li>
   `).join('');
-
-  // Add event listeners to remove buttons
   domainList.querySelectorAll('button').forEach(btn => {
-    btn.addEventListener('click', () => {
-      removeDomain(btn.dataset.domain);
-    });
+    btn.addEventListener('click', () => removeDomain(btn.dataset.domain));
   });
 }
 
-// Show error message
-function showError(message) {
-  errorMessage.textContent = message;
-  setTimeout(() => {
-    errorMessage.textContent = '';
-  }, 3000);
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
-// Validate timer and return true if valid (<= 24 hours)
+function showError(message) {
+  errorMessage.textContent = message;
+  setTimeout(() => { errorMessage.textContent = ''; }, 3000);
+}
+
+// ----- Timer -----
 function validateTimer() {
   const value = parseInt(timerValue.value);
   const unit = timerUnit.value;
-
   if (!value || value <= 0) {
     timerErrorMessage.textContent = '';
     return false;
   }
-
-  // Convert to minutes
   let minutes = value;
-  if (unit === 'hours') {
-    minutes = value * 60;
-  }
-
-  // Check if timer exceeds 24 hours (1440 minutes)
+  if (unit === 'hours') minutes = value * 60;
   if (minutes > 1440) {
     timerErrorMessage.textContent = 'Please set the timer to 24 hours or less to continue';
     return false;
-  } else {
-    timerErrorMessage.textContent = '';
-    return true;
   }
+  timerErrorMessage.textContent = '';
+  return true;
 }
 
-// Update start button state
 function updateStartButton() {
   const hasDomains = blockedDomains.length > 0;
   const timerValid = validateTimer();
   startBlockingBtn.disabled = !hasDomains || !timerValid;
 }
 
-// Compare two arrays for equality
-function arraysEqual(a, b) {
-  if (a.length !== b.length) return false;
-  return a.every((val, index) => val === b[index]);
-}
-
-// Update Save button state based on whether changes have been made
-function updateSaveButtonState() {
-  if (!selectedPresetName || !baselineState) {
-    loadPresetBtn.disabled = true;
-    return;
-  }
-
-  const currentState = {
-    domains: [...blockedDomains].sort(),
-    timerValue: parseInt(timerValue.value) || 60,
-    timerUnit: timerUnit.value || 'minutes'
-  };
-
-  const baseline = {
-    domains: [...baselineState.domains].sort(),
-    timerValue: baselineState.timerValue,
-    timerUnit: baselineState.timerUnit
-  };
-
-  // Check if domains changed
-  const domainsChanged = !arraysEqual(currentState.domains, baseline.domains);
-  
-  // Check if timer changed
-  const timerChanged = currentState.timerValue !== baseline.timerValue || 
-                       currentState.timerUnit !== baseline.timerUnit;
-
-  // Enable Save button only if changes detected
-  loadPresetBtn.disabled = !domainsChanged && !timerChanged;
-}
-
-// Update Add button state based on input field
-function updateAddButtonState() {
-  const name = presetName.value.trim();
-  savePresetBtn.disabled = !name;
-}
-
-// Start blocking
-startBlockingBtn.addEventListener('click', async () => {
-  const value = parseInt(timerValue.value);
-  const unit = timerUnit.value;
-
-  if (!value || value <= 0) {
-    showError('Please enter a valid time greater than 0');
-    return;
-  }
-
-  // Convert to minutes
-  let minutes = value;
-  if (unit === 'hours') {
-    minutes = value * 60;
-  }
-
-  // Validate range (1 minute to 24 hours = 1440 minutes)
-  if (minutes < 1 || minutes > 1440) {
-    showError('Timer must be between 1 minute and 24 hours');
-    return;
-  }
-
-  // Save timer input values to storage
-  await saveTimerInputs(value, unit);
-
-  // Calculate end time
-  timerEndTime = Date.now() + (minutes * 60 * 1000);
-  await saveData();
-
-  updateTimerStatus();
-
-  // Close popup after starting
-  window.close();
-});
-
-// Reset button
-resetBtn.addEventListener('click', async () => {
-  // Clear blocked domains
-  blockedDomains = [];
-  
-  // Reset timer to default (60 minutes)
-  timerValue.value = 60;
-  timerUnit.value = 'minutes';
-  
-  // Clear active timer
-  timerEndTime = null;
-  
-  // Reset preset selection state
-  selectedPresetName = null;
-  baselineState = null;
-  presetSelect.value = '';
-  
-  // Save data to storage
-  await saveData();
-  await saveTimerInputs(60, 'minutes');
-  
-  // Update UI
-  renderDomainList();
-  updateStartButton();
-  updateTimerStatus();
-  updateSaveButtonState();
-  renderPresets();
-});
-
-// Update timer status display
 function updateTimerStatus() {
   if (!timerEndTime || Date.now() >= timerEndTime) {
     timerStatus.classList.remove('active');
     if (timerEndTime && Date.now() >= timerEndTime) {
-      // Timer expired, clear it
       timerEndTime = null;
       saveData();
     }
     return;
   }
-
   const remaining = timerEndTime - Date.now();
-  const timeString = formatTime(remaining);
-
-  timerStatus.textContent = `Blocking active: ${timeString} remaining`;
+  timerStatus.textContent = `Blocking active: ${formatTime(remaining)} remaining`;
   timerStatus.classList.add('active');
 }
 
-// Format time remaining
 function formatTime(ms) {
   const totalSeconds = Math.floor(ms / 1000);
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
   const seconds = totalSeconds % 60;
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  if (minutes > 0) return `${minutes}m ${seconds}s`;
+  return `${seconds}s`;
+}
 
-  if (hours > 0) {
-    return `${hours}h ${minutes}m`;
-  } else if (minutes > 0) {
-    return `${minutes}m ${seconds}s`;
+function formatTimerLabel(value, unit) {
+  const n = parseInt(value) || 0;
+  const base = unit === 'hours' ? 'hour' : 'minute';
+  return `${n} ${base}${n === 1 ? '' : 's'}`;
+}
+
+// ----- Start blocking (extracted) -----
+async function startBlocking() {
+  const value = parseInt(timerValue.value);
+  const unit = timerUnit.value;
+  if (!value || value <= 0) {
+    showError('Please enter a valid time greater than 0');
+    return false;
+  }
+  let minutes = value;
+  if (unit === 'hours') minutes = value * 60;
+  if (minutes < 1 || minutes > 1440) {
+    showError('Timer must be between 1 minute and 24 hours');
+    return false;
+  }
+  await saveTimerInputs(value, unit);
+  timerEndTime = Date.now() + (minutes * 60 * 1000);
+  await saveData();
+  updateTimerStatus();
+  window.close();
+  return true;
+}
+
+startBlockingBtn.addEventListener('click', async () => {
+  if (editingPresetName && isDirtyFromEditBaseline()) {
+    const ok = confirm(`You have unsaved changes to preset "${editingPresetName}". Start blocking without saving?`);
+    if (!ok) return;
+    exitEditMode({ suppressCtaRefresh: true });
+  }
+  await startBlocking();
+});
+
+// ----- Reset -----
+resetBtn.addEventListener('click', async () => {
+  blockedDomains = [];
+  timerValue.value = 60;
+  timerUnit.value = 'minutes';
+  timerEndTime = null;
+  editingPresetName = null;
+  editBaseline = null;
+  await saveData();
+  await saveTimerInputs(60, 'minutes');
+  renderDomainList();
+  updateStartButton();
+  updateTimerStatus();
+  updateSaveCtaVisibility();
+});
+
+// ----- Tab switching -----
+function switchTab(name, { persist = true } = {}) {
+  if (name !== 'domains' && name !== 'presets') name = 'domains';
+  activeTab = name;
+  tabButtons.forEach(btn => {
+    const isActive = btn.dataset.tab === name;
+    btn.classList.toggle('active', isActive);
+    btn.setAttribute('aria-selected', String(isActive));
+  });
+  tabPanels.forEach(panel => {
+    panel.classList.toggle('active', panel.id === `${name}Panel`);
+  });
+  if (name === 'presets') {
+    renderPresetsList();
   } else {
-    return `${seconds}s`;
+    // Leaving presets cancels any in-flight name prompt
+    closeNewPresetForm();
+  }
+  if (persist) {
+    chrome.storage.local.set({ activeTab: name });
   }
 }
 
-// Save preset (Add button - creates new preset)
-savePresetBtn.addEventListener('click', async () => {
-  const name = presetName.value.trim();
-
-  if (!name) {
-    showError('Please enter a preset name');
-    return;
+// ----- Preset matching helpers -----
+function domainsSetEqual(a, b) {
+  if (a.length !== b.length) return false;
+  const sa = [...a].sort();
+  const sb = [...b].sort();
+  for (let i = 0; i < sa.length; i++) {
+    if (sa[i] !== sb[i]) return false;
   }
+  return true;
+}
 
-  if (blockedDomains.length === 0) {
-    showError('Add some domains first');
-    return;
-  }
-
-  presets[name] = {
+function currentState() {
+  return {
     domains: [...blockedDomains],
     timerValue: parseInt(timerValue.value) || 60,
     timerUnit: timerUnit.value || 'minutes'
   };
-  await saveData();
-  presetName.value = '';
-  updateAddButtonState();
-  renderPresets();
-  showError(''); // Clear any errors
-});
+}
 
-// Handle preset selection change (auto-load preset)
-async function handlePresetSelect() {
-  const selectedPreset = presetSelect.value;
-
-  if (!selectedPreset) {
-    selectedPresetName = null;
-    baselineState = null;
-    updateSaveButtonState();
-    return;
-  }
-
-  if (presets[selectedPreset]) {
-    const preset = presets[selectedPreset];
-    
-    // Handle old format (array) for backwards compatibility
-    if (Array.isArray(preset)) {
-      blockedDomains = [...preset];
-      // Don't change timer values if preset is old format
-    } else {
-      // New format (object with domains, timerValue, timerUnit)
-      blockedDomains = [...preset.domains];
-      timerValue.value = preset.timerValue || 60;
-      timerUnit.value = preset.timerUnit || 'minutes';
-      await saveTimerInputs(preset.timerValue || 60, preset.timerUnit || 'minutes');
+function matchesAnyPreset(state) {
+  for (const preset of Object.values(presets)) {
+    if (!preset || Array.isArray(preset)) continue;
+    if (
+      preset.timerValue === state.timerValue &&
+      preset.timerUnit === state.timerUnit &&
+      domainsSetEqual(preset.domains || [], state.domains)
+    ) {
+      return true;
     }
-    
-    await saveData();
-    renderDomainList();
-    updateStartButton();
-    
-    // Set selected preset and baseline state for change tracking
-    selectedPresetName = selectedPreset;
-    baselineState = {
-      domains: [...blockedDomains],
-      timerValue: parseInt(timerValue.value) || 60,
-      timerUnit: timerUnit.value || 'minutes'
-    };
-    
-    updateSaveButtonState();
-    showError(''); // Clear any errors
+  }
+  return false;
+}
+
+function isDirtyFromEditBaseline() {
+  if (!editBaseline) return false;
+  const s = currentState();
+  return (
+    s.timerValue !== editBaseline.timerValue ||
+    s.timerUnit !== editBaseline.timerUnit ||
+    !domainsSetEqual(s.domains, editBaseline.domains)
+  );
+}
+
+function shouldShowSaveAsPresetCTA() {
+  if (editingPresetName) return false;
+  if (blockedDomains.length === 0) return false;
+  if (!validateTimer()) return false;
+  return !matchesAnyPreset(currentState());
+}
+
+// ----- Edit mode -----
+async function enterEditMode(name) {
+  const preset = presets[name];
+  if (!preset || Array.isArray(preset)) return;
+  blockedDomains = [...(preset.domains || [])];
+  timerValue.value = preset.timerValue || 60;
+  timerUnit.value = preset.timerUnit || 'minutes';
+  editingPresetName = name;
+  editBaseline = {
+    domains: [...blockedDomains],
+    timerValue: preset.timerValue || 60,
+    timerUnit: preset.timerUnit || 'minutes'
+  };
+  await saveData();
+  await saveTimerInputs(editBaseline.timerValue, editBaseline.timerUnit);
+  renderDomainList();
+  updateStartButton();
+  switchTab('domains');
+  updateSaveCtaVisibility();
+}
+
+function exitEditMode({ suppressCtaRefresh = false } = {}) {
+  editingPresetName = null;
+  editBaseline = null;
+  if (!suppressCtaRefresh) updateSaveCtaVisibility();
+}
+
+// ----- Save CTA visibility controller -----
+function updateSaveCtaVisibility() {
+  const inEditMode = !!editingPresetName;
+  const timerOk = validateTimer();
+  const hasDomains = blockedDomains.length > 0;
+
+  // Nothing is saveable without at least one blocked domain.
+  if (!hasDomains) {
+    presetBanner.hidden = true;
+    saveAsPresetBtn.hidden = true;
+    saveChangesBtn.hidden = true;
+    saveAsNewPresetBtn.hidden = true;
+    return;
+  }
+
+  if (inEditMode) {
+    const valid = timerOk && hasDomains;
+    const canSave = valid && isDirtyFromEditBaseline();
+    const canSaveAsNew = valid;
+    presetBannerText.textContent = `Editing preset: ${editingPresetName}`;
+    cancelEditBtn.hidden = false;
+    saveAsPresetBtn.hidden = true;
+    saveChangesBtn.hidden = !canSave;
+    saveAsNewPresetBtn.hidden = !canSaveAsNew;
+    saveChangesBtn.disabled = !canSave;
+    saveAsNewPresetBtn.disabled = !canSaveAsNew;
+    presetBanner.hidden = !(canSave || canSaveAsNew);
+    return;
+  }
+
+  const showSaveAs = shouldShowSaveAsPresetCTA();
+  presetBannerText.textContent = 'Save as preset';
+  cancelEditBtn.hidden = true;
+  saveChangesBtn.hidden = true;
+  saveAsNewPresetBtn.hidden = true;
+  saveAsPresetBtn.hidden = !showSaveAs;
+  saveAsPresetBtn.disabled = false;
+  presetBanner.hidden = !showSaveAs;
+}
+
+// ----- Save-as-preset flow (redirects to Presets tab) -----
+function beginSaveAsPreset() {
+  if (blockedDomains.length === 0) {
+    showError('Add at least one domain first');
+    return;
+  }
+  if (!validateTimer()) {
+    return;
+  }
+  pendingSave = currentState();
+  switchTab('presets');
+  openNewPresetForm();
+}
+
+function openNewPresetForm() {
+  newPresetName.value = '';
+  newPresetError.textContent = '';
+  newPresetForm.hidden = false;
+  setTimeout(() => newPresetName.focus(), 0);
+}
+
+function closeNewPresetForm() {
+  newPresetForm.hidden = true;
+  newPresetError.textContent = '';
+  newPresetName.value = '';
+  pendingSave = null;
+}
+
+function cancelNewPresetForm() {
+  closeNewPresetForm();
+}
+
+async function confirmNewPreset() {
+  const name = newPresetName.value.trim();
+  if (!name) {
+    newPresetError.textContent = 'Name required';
+    return;
+  }
+  const existingKey = Object.keys(presets).find(
+    k => k.toLowerCase() === name.toLowerCase()
+  );
+  if (existingKey) {
+    newPresetError.textContent = 'A preset with this name already exists';
+    return;
+  }
+  if (!pendingSave) {
+    // Defensive: snapshot current state if somehow missing
+    pendingSave = currentState();
+  }
+  presets[name] = {
+    domains: [...pendingSave.domains],
+    timerValue: pendingSave.timerValue,
+    timerUnit: pendingSave.timerUnit
+  };
+  await saveData();
+  closeNewPresetForm();
+  renderPresetsList();
+  updateSaveCtaVisibility();
+}
+
+// ----- Save changes (overwrite current edit) -----
+async function saveChangesToEditedPreset() {
+  if (!editingPresetName) return;
+  if (!validateTimer()) return;
+  if (blockedDomains.length === 0) {
+    showError('Add at least one domain first');
+    return;
+  }
+  const state = currentState();
+  presets[editingPresetName] = {
+    domains: [...state.domains],
+    timerValue: state.timerValue,
+    timerUnit: state.timerUnit
+  };
+  await saveData();
+  editBaseline = {
+    domains: [...state.domains],
+    timerValue: state.timerValue,
+    timerUnit: state.timerUnit
+  };
+  updateSaveCtaVisibility();
+}
+
+// ----- Preset card rendering -----
+function renderPresetsList() {
+  const names = Object.keys(presets);
+  presetList.innerHTML = '';
+  if (names.length === 0) {
+    presetEmptyState.hidden = false;
+    return;
+  }
+  presetEmptyState.hidden = true;
+
+  for (const name of names) {
+    const preset = presets[name];
+    if (!preset || Array.isArray(preset)) continue;
+    const card = document.createElement('div');
+    card.className = 'preset-card';
+    card.dataset.name = name;
+
+    const header = document.createElement('div');
+    header.className = 'preset-card-header';
+    const title = document.createElement('div');
+    title.className = 'preset-title';
+    title.textContent = name;
+    const meta = document.createElement('div');
+    meta.className = 'preset-meta';
+    meta.textContent = formatTimerLabel(preset.timerValue, preset.timerUnit);
+    header.appendChild(title);
+    header.appendChild(meta);
+
+    const actions = document.createElement('div');
+    actions.className = 'preset-card-actions';
+    const enableBtn = document.createElement('button');
+    enableBtn.className = 'preset-enable';
+    enableBtn.textContent = 'Enable';
+    enableBtn.addEventListener('click', () => enablePreset(name));
+    const editBtn = document.createElement('button');
+    editBtn.className = 'preset-edit';
+    editBtn.textContent = 'Edit';
+    editBtn.addEventListener('click', () => enterEditMode(name));
+    const delBtn = document.createElement('button');
+    delBtn.className = 'preset-delete delete-btn';
+    delBtn.textContent = 'Delete';
+    delBtn.addEventListener('click', () => deletePreset(name));
+    actions.appendChild(enableBtn);
+    actions.appendChild(editBtn);
+    actions.appendChild(delBtn);
+
+    card.appendChild(header);
+    card.appendChild(actions);
+    presetList.appendChild(card);
   }
 }
 
-// Save preset (Save button - overwrites selected preset)
-loadPresetBtn.addEventListener('click', async () => {
-  const selectedPreset = presetSelect.value;
-
-  if (!selectedPreset) {
-    showError('Please select a preset to save');
-    return;
-  }
-
-  if (!selectedPresetName || selectedPresetName !== selectedPreset) {
-    showError('Please select the preset you want to save');
-    return;
-  }
-
-  // Save current state over the selected preset
-  presets[selectedPreset] = {
-    domains: [...blockedDomains],
-    timerValue: parseInt(timerValue.value) || 60,
-    timerUnit: timerUnit.value || 'minutes'
-  };
-  
+async function deletePreset(name) {
+  const ok = confirm(`Delete preset "${name}"?`);
+  if (!ok) return;
+  delete presets[name];
   await saveData();
-  
-  // Update baseline state to match current state (changes are now saved)
-  baselineState = {
-    domains: [...blockedDomains],
-    timerValue: parseInt(timerValue.value) || 60,
-    timerUnit: timerUnit.value || 'minutes'
-  };
-  
-  updateSaveButtonState();
-  renderPresets();
-  showError(''); // Clear any errors
-});
+  if (editingPresetName === name) {
+    exitEditMode({ suppressCtaRefresh: true });
+  }
+  renderPresetsList();
+  updateSaveCtaVisibility();
+}
 
-// Delete preset
-deletePresetBtn.addEventListener('click', async () => {
-  const selectedPreset = presetSelect.value;
-
-  if (!selectedPreset) {
-    showError('Please select a preset to delete');
+async function enablePreset(name) {
+  const preset = presets[name];
+  if (!preset || Array.isArray(preset)) return;
+  const presetDomains = preset.domains || [];
+  if (presetDomains.length === 0) {
+    showError('This preset has no domains');
     return;
   }
-
-  delete presets[selectedPreset];
-  await saveData();
-  
-  // Reset selection state if we deleted the currently selected preset
-  if (selectedPresetName === selectedPreset) {
-    selectedPresetName = null;
-    baselineState = null;
-    presetSelect.value = '';
+  blockedDomains = [...presetDomains];
+  timerValue.value = preset.timerValue || 60;
+  timerUnit.value = preset.timerUnit || 'minutes';
+  editingPresetName = null;
+  editBaseline = null;
+  renderDomainList();
+  // Single consolidated write via startBlocking — avoids sending a
+  // transient {blockedDomains, timerEndTime: null} snapshot to the
+  // content script that would briefly hide the overlay.
+  const started = await startBlocking();
+  if (!started) {
+    // Validation failed; at least persist the loaded state so the
+    // Blocked Domains tab reflects the preset selection.
+    await saveData();
+    await saveTimerInputs(preset.timerValue || 60, preset.timerUnit || 'minutes');
   }
-  
-  renderPresets();
-  updateSaveButtonState();
-  showError(''); // Clear any errors
-});
-
-// Render presets dropdown
-function renderPresets() {
-  const presetNames = Object.keys(presets);
-
-  if (presetNames.length === 0) {
-    presetSelect.innerHTML = '<option value="">-- No presets saved --</option>';
-    return;
-  }
-
-  presetSelect.innerHTML = '<option value="">-- Select Preset --</option>' +
-    presetNames.map(name => `<option value="${name}">${name}</option>`).join('');
 }
