@@ -17,13 +17,12 @@ const tabPanels = document.querySelectorAll('.tab-panel');
 const domainsPanel = document.getElementById('domainsPanel');
 const presetsPanel = document.getElementById('presetsPanel');
 
-const editBanner = document.getElementById('editBanner');
-const editBannerName = document.getElementById('editBannerName');
-const cancelEditBtn = document.getElementById('cancelEditBtn');
+const closePanelBtn = document.getElementById('closePanelBtn');
 
-const saveCtaFooter = document.getElementById('saveCtaFooter');
+const presetBanner = document.getElementById('presetBanner');
+const presetBannerText = document.getElementById('presetBannerText');
+const cancelEditBtn = document.getElementById('cancelEditBtn');
 const saveAsPresetBtn = document.getElementById('saveAsPresetBtn');
-const editCtaRow = document.getElementById('editCtaRow');
 const saveChangesBtn = document.getElementById('saveChangesBtn');
 const saveAsNewPresetBtn = document.getElementById('saveAsNewPresetBtn');
 
@@ -353,6 +352,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     switchTab(btn.dataset.tab);
   });
 
+  // Close panel button
+  closePanelBtn.addEventListener('click', () => window.close());
+
   // Edit banner cancel
   cancelEditBtn.addEventListener('click', () => {
     exitEditMode();
@@ -591,7 +593,6 @@ resetBtn.addEventListener('click', async () => {
   timerEndTime = null;
   editingPresetName = null;
   editBaseline = null;
-  editBanner.hidden = true;
   await saveData();
   await saveTimerInputs(60, 'minutes');
   renderDomainList();
@@ -686,8 +687,6 @@ async function enterEditMode(name) {
     timerValue: preset.timerValue || 60,
     timerUnit: preset.timerUnit || 'minutes'
   };
-  editBannerName.textContent = name;
-  editBanner.hidden = false;
   await saveData();
   await saveTimerInputs(editBaseline.timerValue, editBaseline.timerUnit);
   renderDomainList();
@@ -699,24 +698,35 @@ async function enterEditMode(name) {
 function exitEditMode({ suppressCtaRefresh = false } = {}) {
   editingPresetName = null;
   editBaseline = null;
-  editBanner.hidden = true;
   if (!suppressCtaRefresh) updateSaveCtaVisibility();
 }
 
 // ----- Save CTA visibility controller -----
 function updateSaveCtaVisibility() {
   const inEditMode = !!editingPresetName;
-  const editDirty = inEditMode && isDirtyFromEditBaseline();
+  const timerOk = validateTimer();
+  const hasDomains = blockedDomains.length > 0;
+
+  if (inEditMode) {
+    presetBannerText.textContent = `Editing preset: ${editingPresetName}`;
+    cancelEditBtn.hidden = false;
+    saveAsPresetBtn.hidden = true;
+    saveChangesBtn.hidden = false;
+    saveAsNewPresetBtn.hidden = false;
+    saveChangesBtn.disabled = !timerOk || !hasDomains || !isDirtyFromEditBaseline();
+    saveAsNewPresetBtn.disabled = !timerOk || !hasDomains;
+    presetBanner.hidden = false;
+    return;
+  }
+
   const showSaveAs = shouldShowSaveAsPresetCTA();
-
-  saveAsPresetBtn.hidden = inEditMode || !showSaveAs;
-  editCtaRow.hidden = !editDirty;
-
-  const anyVisible = !saveAsPresetBtn.hidden || !editCtaRow.hidden;
-  saveCtaFooter.hidden = !anyVisible;
-
-  // Disable Save changes when timer invalid
-  saveChangesBtn.disabled = !validateTimer() || blockedDomains.length === 0;
+  presetBannerText.textContent = 'Save as preset';
+  cancelEditBtn.hidden = true;
+  saveChangesBtn.hidden = true;
+  saveAsNewPresetBtn.hidden = true;
+  saveAsPresetBtn.hidden = !showSaveAs;
+  saveAsPresetBtn.disabled = false;
+  presetBanner.hidden = !showSaveAs;
 }
 
 // ----- Save-as-preset flow (redirects to Presets tab) -----
@@ -874,7 +884,6 @@ async function enablePreset(name) {
   timerUnit.value = preset.timerUnit || 'minutes';
   editingPresetName = null;
   editBaseline = null;
-  editBanner.hidden = true;
   await saveData();
   await saveTimerInputs(preset.timerValue || 60, preset.timerUnit || 'minutes');
   renderDomainList();

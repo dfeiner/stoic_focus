@@ -4,10 +4,14 @@
   box-sizing: border-box;
 }
 
+html, body {
+  height: 100%;
+}
+
 body {
   font-family: 'Manrope', sans-serif;
-  width: 400px;
-  height: 580px;
+  min-width: 320px;
+  height: 100vh;
   overflow: hidden;
   background: #f5f1eb;
   color: #3d3428;
@@ -20,12 +24,46 @@ body {
   flex-direction: column;
 }
 
+.app-header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+
 h1 {
   font-size: 22px;
   font-weight: 700;
-  margin-bottom: 12px;
   color: #3d3428;
   text-align: center;
+}
+
+.close-btn {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: #9b8b75;
+  border: none;
+  border-radius: 6px;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, transform 0.15s;
+}
+
+.close-btn:hover {
+  background: rgba(61, 52, 40, 0.06);
+  color: #3d3428;
+  transform: translateY(-50%);
 }
 
 /* Quote Section */
@@ -98,16 +136,47 @@ h2 {
 
 .tab-panels {
   flex: 1;
-  overflow-y: auto;
+  display: flex;
   min-height: 0;
+  overflow: hidden;
 }
 
 .tab-panel {
   display: none;
+  flex: 1;
+  min-height: 0;
 }
 
 .tab-panel.active {
-  display: block;
+  display: flex;
+  flex-direction: column;
+}
+
+.panel-body {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  padding-right: 2px;
+}
+
+.panel-footer {
+  flex-shrink: 0;
+  padding-top: 12px;
+  margin-top: 8px;
+  border-top: 1px solid #d4c9ba;
+  background: #f5f1eb;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.panel-footer > .primary-btn,
+.panel-footer > .secondary-btn {
+  margin-top: 0;
+}
+
+.panel-footer > .preset-banner {
+  margin-bottom: 0;
 }
 
 .sub-section {
@@ -118,13 +187,13 @@ h2 {
   margin-bottom: 0;
 }
 
-/* Preset Banner (between Timer inputs and Start Blocking) */
+/* Preset Banner (sits above sticky Start Blocking / Reset footer) */
 .preset-banner {
   display: flex;
   flex-direction: column;
   gap: 10px;
   padding: 12px;
-  margin: 4px 0 10px;
+  margin-bottom: 10px;
   background: #faf0e4;
   border: 1px solid #e6c9a8;
   border-radius: 8px;
@@ -154,6 +223,20 @@ h2 {
   flex: 1;
   padding: 8px 12px;
   font-size: 13px;
+}
+
+.preset-banner-btn {
+  background: #e0a878;
+  color: #3d3428;
+}
+
+.preset-banner-btn:hover:not(:disabled) {
+  background: #d19763;
+}
+
+.preset-banner-btn:disabled {
+  background: #ead5bd;
+  color: #9b8b75;
 }
 
 .preset-banner-btn-secondary {

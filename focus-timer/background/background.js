@@ -1,5 +1,10 @@
 // Background service worker for Focus Timer
 
+// Open side panel when the toolbar action is clicked
+chrome.sidePanel
+  .setPanelBehavior({ openPanelOnActionClick: true })
+  .catch((error) => console.error('Focus Timer: sidePanel.setPanelBehavior failed', error));
+
 // Clear timer on browser startup (intentional fresh start)
 chrome.runtime.onStartup.addListener(async () => {
   await chrome.storage.local.set({ timerEndTime: null });
