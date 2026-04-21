@@ -385,7 +385,11 @@ function setupOverlayListeners() {
 
     if (text.toLowerCase() === requiredText) {
       // Clear timer and remove overlay
-      await chrome.storage.local.set({ timerEndTime: null });
+      try {
+        await chrome.storage.local.set({ timerEndTime: null });
+      } catch (e) {
+        // Extension context invalidated — still hide overlay locally
+      }
       hideOverlay();
     } else {
       errorDiv.textContent = 'Incorrect phrase. Try again.';
