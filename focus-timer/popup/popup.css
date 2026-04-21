@@ -202,6 +202,10 @@ h2 {
   color: #5a4a3a;
 }
 
+.preset-banner[hidden] {
+  display: none;
+}
+
 .preset-banner-top {
   display: flex;
   justify-content: space-between;
@@ -519,6 +523,10 @@ button:disabled {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+.new-preset-form[hidden] {
+  display: none;
 }
 
 .new-preset-label {
