@@ -879,13 +879,25 @@ async function deletePreset(name) {
 async function enablePreset(name) {
   const preset = presets[name];
   if (!preset || Array.isArray(preset)) return;
-  blockedDomains = [...(preset.domains || [])];
+  const presetDomains = preset.domains || [];
+  if (presetDomains.length === 0) {
+    showError('This preset has no domains');
+    return;
+  }
+  blockedDomains = [...presetDomains];
   timerValue.value = preset.timerValue || 60;
   timerUnit.value = preset.timerUnit || 'minutes';
   editingPresetName = null;
   editBaseline = null;
-  await saveData();
-  await saveTimerInputs(preset.timerValue || 60, preset.timerUnit || 'minutes');
   renderDomainList();
-  await startBlocking();
+  // Single consolidated write via startBlocking — avoids sending a
+  // transient {blockedDomains, timerEndTime: null} snapshot to the
+  // content script that would briefly hide the overlay.
+  const started = await startBlocking();
+  if (!started) {
+    // Validation failed; at least persist the loaded state so the
+    // Blocked Domains tab reflects the preset selection.
+    await saveData();
+    await saveTimerInputs(preset.timerValue || 60, preset.timerUnit || 'minutes');
+  }
 }

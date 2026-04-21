@@ -177,6 +177,7 @@ h2 {
 
 .panel-footer > .preset-banner {
   margin-bottom: 0;
+  margin-top: 4px;
 }
 
 .sub-section {
@@ -415,10 +416,10 @@ button:disabled {
   flex: 1;
 }
 
-/* Timer Status */
+/* Timer Status (global blocking-active banner above the tabs) */
 .timer-status {
-  margin-top: 10px;
-  padding: 10px;
+  margin-bottom: 12px;
+  padding: 10px 12px;
   background: #e8dfc8;
   border-radius: 6px;
   text-align: center;

@@ -21,6 +21,9 @@
       <div id="featuredQuote" class="featured-quote"></div>
     </div>
 
+    <!-- Blocking-active status (shown across both tabs when a timer is running) -->
+    <div id="timerStatus" class="timer-status"></div>
+
     <!-- Tab Bar -->
     <nav class="tab-bar" role="tablist">
       <button class="tab-btn active" data-tab="domains" role="tab" aria-selected="true">Blocked Domains</button>
@@ -71,6 +74,9 @@
         </div>
 
         <div class="panel-footer">
+          <button id="startBlockingBtn" class="primary-btn" disabled>Start Blocking</button>
+          <button id="resetBtn" class="secondary-btn">Reset</button>
+
           <div id="presetBanner" class="preset-banner" hidden>
             <div class="preset-banner-top">
               <span id="presetBannerText" class="preset-banner-text">Save as preset</span>
@@ -82,10 +88,6 @@
               <button id="saveAsNewPresetBtn" class="preset-banner-btn-secondary" type="button" hidden>Save as new preset</button>
             </div>
           </div>
-
-          <button id="startBlockingBtn" class="primary-btn" disabled>Start Blocking</button>
-          <button id="resetBtn" class="secondary-btn">Reset</button>
-          <div id="timerStatus" class="timer-status"></div>
         </div>
       </section>
 
