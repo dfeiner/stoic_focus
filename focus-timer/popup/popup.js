@@ -708,14 +708,17 @@ function updateSaveCtaVisibility() {
   const hasDomains = blockedDomains.length > 0;
 
   if (inEditMode) {
+    const valid = timerOk && hasDomains;
+    const canSave = valid && isDirtyFromEditBaseline();
+    const canSaveAsNew = valid;
     presetBannerText.textContent = `Editing preset: ${editingPresetName}`;
     cancelEditBtn.hidden = false;
     saveAsPresetBtn.hidden = true;
-    saveChangesBtn.hidden = false;
-    saveAsNewPresetBtn.hidden = false;
-    saveChangesBtn.disabled = !timerOk || !hasDomains || !isDirtyFromEditBaseline();
-    saveAsNewPresetBtn.disabled = !timerOk || !hasDomains;
-    presetBanner.hidden = false;
+    saveChangesBtn.hidden = !canSave;
+    saveAsNewPresetBtn.hidden = !canSaveAsNew;
+    saveChangesBtn.disabled = !canSave;
+    saveAsNewPresetBtn.disabled = !canSaveAsNew;
+    presetBanner.hidden = !(canSave || canSaveAsNew);
     return;
   }
 
