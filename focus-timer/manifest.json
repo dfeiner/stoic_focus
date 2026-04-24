@@ -1,12 +1,10 @@
 {
   "manifest_version": 3,
   "name": "Stoic Focus - Blocking Distractions with Inspiration",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Maintain focus by temporarily blocking access to distracting websites with a motivational overlay.",
   "permissions": [
     "storage",
-    "activeTab",
-    "scripting",
     "sidePanel"
   ],
   "host_permissions": [
